@@ -1,1 +1,0 @@
-powershell -command "Compress-Archive -Path 'data' -DestinationPath 'data'" -Force
