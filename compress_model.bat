@@ -1,1 +1,0 @@
-powershell -command "Compress-Archive -Path 'trained_models' -DestinationPath 'trained_models'" -Force
