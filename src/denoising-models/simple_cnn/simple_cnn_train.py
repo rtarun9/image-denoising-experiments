@@ -55,7 +55,7 @@ def train_model(x_train, x_val, y_train, y_val, epochs, trained_model_file_name,
     np.save(history_file_name, history.history)
 
 def main():
-    x_data, y_data = load_training_images(low_dose_ct_training_dataset_dir='../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_limited_images=True, num_images_to_load=10)
+    x_data, y_data = load_training_images(low_dose_ct_training_dataset_dir='../../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_limited_images=True, num_images_to_load=10)
     
     x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, test_size=0.2, random_state=42)
     
