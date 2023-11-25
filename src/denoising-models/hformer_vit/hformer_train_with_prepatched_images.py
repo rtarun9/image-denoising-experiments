@@ -296,7 +296,7 @@ def train_model(x_train, x_val, y_train, y_val, epochs, trained_model_file_name,
     # The batch size is 16 through 4000 epochs. 
     # The ADAM-W optimizer was used to minimize the mean squared error loss, and the learning rate was 1.0 × 10−5
     # AdamW cannot be used with tf2.10, so revering to Adam.
-    patch_extractor = PatchExtractor(patch_size=32, stride=32)
+    patch_extractor = PatchExtractor(patch_size=32, stride=16)
     model = Hformer()
 
     model.build(patch_extractor(x_train).shape) 
@@ -313,7 +313,7 @@ def train_model(x_train, x_val, y_train, y_val, epochs, trained_model_file_name,
 
     # Save the model weights to an HDF5 file
     # We cant use model.save as subclassing API is used here.
-    model.save_weights('my_model_weights.h5')
+    model.save_weights('trained_model_file_name.h5')
     
     # Save the training history
     np.save(history_file_name, history.history)
