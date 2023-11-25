@@ -74,3 +74,4 @@ def load_testing_images(low_dose_ct_testing_dataset_dir='../../../Dataset/LowDos
     print('range of values in test images : ', np.min(testing_images_x[0]), np.max(testing_images_x[0]))
     
     return testing_images_x
+
