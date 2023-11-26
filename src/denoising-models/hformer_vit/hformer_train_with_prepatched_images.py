@@ -27,7 +27,7 @@ def train_model(training_dataset, epochs, trained_model_file_name, history_file_
     # The ADAM-W optimizer was used to minimize the mean squared error loss, and the learning rate was 1.0 × 10−5
     # AdamW cannot be used with tf2.10, so revering to Adam.
 
-    model = get_hformer_model(num_channels_to_be_generated=64, name="hformer_model_64_channel")
+    model = get_hformer_model(num_channels_to_be_generated=1, name="hformer_model_64_channel")
 
     # Train validation split.
     train_dataset, val_dataset = split_dataset(training_dataset, split_ratio=0.8)
