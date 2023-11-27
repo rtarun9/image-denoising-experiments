@@ -78,5 +78,6 @@ def load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../Dataset/
     clean_image_dataset = _create_image_dataset(clean_image_paths, patch_extractor)
 
     training_dataset = tf.data.Dataset.zip((noisy_image_dataset, clean_image_dataset))
+    training_dataset = training_dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
 
     return training_dataset

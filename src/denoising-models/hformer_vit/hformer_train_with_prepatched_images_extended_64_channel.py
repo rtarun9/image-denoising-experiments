@@ -11,6 +11,7 @@ from hformer_model_extended import get_hformer_model
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
 
+
 def split_dataset(dataset, split_ratio=0.8):
     total_samples = len(dataset)
     train_size = int(total_samples * split_ratio)
@@ -58,7 +59,7 @@ def train_model(training_dataset, epochs, trained_model_file_name, history_file_
     model.compile(tf.keras.optimizers.Adam(learning_rate=1.0 * 10**-5), metrics=psnr, loss='mse')
     print(model.summary())
     
-    history = model.fit(train_dataset, epochs=epochs,  verbose=1, validation_data=val_dataset, batch_size=1)
+    history = model.fit(train_dataset, epochs=epochs,  verbose=1, validation_data=val_dataset)
     
     # Save the model weights to an HDF5 file
     # We cant use model.save as subclassing API is used here.
@@ -68,14 +69,14 @@ def train_model(training_dataset, epochs, trained_model_file_name, history_file_
     np.save(history_file_name, history.history)
     
 def main():
-    training_dataset = load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_as_patches=True, load_limited_images=True, num_images_to_load=2)
+    training_dataset = load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_as_patches=True, load_limited_images=True, num_images_to_load=100)
         
-    trained_model_file_name = 'hformer_1_epoch_extended_64_channel.h5'
-    history_file_name = 'hformer_1_epoch_history_extended_64_channel.npy'
+    trained_model_file_name = 'hformer_15_epoch_extended_64_channel.h5'
+    history_file_name = 'hformer_15_epoch_history_extended_64_channel.npy'
     
     print('training dataset' , training_dataset)
     
-    train_model(training_dataset, 1, trained_model_file_name, history_file_name)
+    train_model(training_dataset, 15, trained_model_file_name, history_file_name)
     
     print('model trained successfully with name : ', trained_model_file_name)
     print('saved history in file with name : ', history_file_name)
