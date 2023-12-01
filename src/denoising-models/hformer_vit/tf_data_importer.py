@@ -3,9 +3,35 @@ import os
 import tensorflow as tf
 import pydicom
 
+def load_scan(path):
+    # referred from https://www.kaggle.com/gzuidhof/full-preprocessing-tutorial
+    slices = [pydicom.read_file(path)]
+    return slices
+
+
+def get_pixels_hu(slices):
+    # referred from https://www.kaggle.com/gzuidhof/full-preprocessing-tutorial
+    image = np.stack([s.pixel_array for s in slices])
+    image = image.astype(np.int16)
+    image[image == -2000] = 0
+    for slice_number in range(len(slices)):
+        intercept = slices[slice_number].RescaleIntercept
+        slope = slices[slice_number].RescaleSlope
+        if slope != 1:
+            image[slice_number] = slope * image[slice_number].astype(np.float64)
+            image[slice_number] = image[slice_number].astype(np.int16)
+        image[slice_number] += np.int16(intercept)
+    return np.int16(image)
+
 def read_image(image_path):
-    data = pydicom.dcmread(image_path.numpy().decode('utf-8'))
-    return np.expand_dims(np.expand_dims(data.pixel_array, axis=-1), axis=0)
+    image_path = image_path.numpy().decode('utf-8')
+    full_pixels =get_pixels_hu(load_scan(image_path))
+    
+    MIN_B= -1024.0
+    MAX_B= 3072.0
+    data = (full_pixels - MIN_B) / (MAX_B - MIN_B)
+    
+    return np.expand_dims(data, axis=-1)
 
 class PatchExtractor(tf.keras.layers.Layer):
     def __init__(self, patch_size, stride, name):
@@ -28,7 +54,6 @@ class PatchExtractor(tf.keras.layers.Layer):
 
 def load_and_preprocess_image(file_path, patch_extractor=None):
     image_data = tf.py_function(read_image, [file_path], tf.float32)
-    image_data = image_data / tf.reduce_max(image_data)
         
     if patch_extractor:
         patches = patch_extractor(image_data)
@@ -72,7 +97,7 @@ def load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../Dataset/
 
     patch_extractor = None
     if load_as_patches:
-        patch_extractor = PatchExtractor(patch_size=64, stride=128, name="patch_extractor")
+        patch_extractor = PatchExtractor(patch_size=64, stride=16, name="patch_extractor")
 
     noisy_image_dataset = _create_image_dataset(noisy_image_paths, patch_extractor)
     clean_image_dataset = _create_image_dataset(clean_image_paths, patch_extractor)

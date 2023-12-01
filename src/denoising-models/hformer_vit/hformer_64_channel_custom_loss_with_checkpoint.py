@@ -53,8 +53,10 @@ def combined_loss(y_true, y_pred):
     ssim_loss_value = ssim_loss(y_true, y_pred)
 
     # Define the weights for each loss function
-    mse_weight = 0.7
-    ssim_weight = 0.3
+    # Technially should sum up to 1, but mse is already in decimals.
+    # So, rather than summing to 1 the weight sum will be larger.
+    mse_weight = 1.0
+    ssim_weight = 0.7
 
     combined_loss = mse_weight * mse_loss + ssim_weight * ssim_loss_value
 
@@ -92,7 +94,7 @@ def train_model(training_dataset, epochs, trained_model_file_name, history_file_
     np.save(history_file_name, history.history)
     
 def main():
-    training_dataset = load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_as_patches=True, load_limited_images=True, num_images_to_load=400)
+    training_dataset = load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_as_patches=True, load_limited_images=True, num_images_to_load=4)
         
     trained_model_file_name = 'hformer_200_epoch_extended_64_channel_reduced_dataset.h5'
     history_file_name = 'hformer_200_epoch_history_extended_64_channel_reduced_dataset.npy'
