@@ -72,6 +72,7 @@ class Solver(object):
 
 
     def load_model(self, iter_):
+        print('WGANVGG_{}iter.ckpt'.format(iter_))
         f = os.path.join(self.save_path, 'WGANVGG_{}iter.ckpt'.format(iter_))
         generator_w = {k[10:]:torch.load(f)[k] for k in  list(torch.load(f).keys()) if 'generator' in k}
         

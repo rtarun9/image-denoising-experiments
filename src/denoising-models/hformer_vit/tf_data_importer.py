@@ -25,13 +25,13 @@ def get_pixels_hu(slices):
 
 def read_image(image_path):
     image_path = image_path.numpy().decode('utf-8')
-    full_pixels =get_pixels_hu(load_scan(image_path))
+    full_pixels = get_pixels_hu(load_scan(image_path))
     
     MIN_B= -1024.0
     MAX_B= 3072.0
     data = (full_pixels - MIN_B) / (MAX_B - MIN_B)
     
-    return np.expand_dims(data, axis=-1)
+    return np.squeeze(np.expand_dims(data, axis=-1), axis=0)
 
 
 class PatchExtractor(tf.keras.layers.Layer):
@@ -93,7 +93,7 @@ def _create_image_dataset(image_paths, patch_extractor):
 
     return image_dataset
 
-def load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_as_patches=False, load_limited_images=False, num_images_to_load=10):
+def load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_as_patches=False, load_limited_images=False, num_images_to_load=10):
     noisy_image_paths, clean_image_paths = _load_image_paths(low_dose_ct_training_dataset_dir, load_limited_images, num_images_to_load)
 
     patch_extractor = None
@@ -105,9 +105,9 @@ def load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../Dataset/
 
     training_dataset = tf.data.Dataset.zip((noisy_image_dataset, clean_image_dataset))
     training_dataset = training_dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
-    print('loaded dataset')
+    print('loaded dataset') 
     
     # Shuffle entire dataset.
-    training_dataset = training_dataset.shuffle(training_dataset.cardinality())
+    training_dataset = training_dataset.shuffle(100)
 
     return training_dataset

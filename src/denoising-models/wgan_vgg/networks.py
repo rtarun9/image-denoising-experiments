@@ -57,7 +57,7 @@ class WGAN_VGG_discriminator(nn.Module):
 class WGAN_VGG_FeatureExtractor(nn.Module):
     def __init__(self):
         super(WGAN_VGG_FeatureExtractor, self).__init__()
-        vgg19_model = vgg19(pretrained=True)
+        vgg19_model = vgg19(weights='DEFAULT')
         self.feature_extractor = nn.Sequential(*list(vgg19_model.features.children())[:35])
 
     def forward(self, x):

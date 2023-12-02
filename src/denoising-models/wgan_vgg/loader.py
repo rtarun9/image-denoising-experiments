@@ -19,9 +19,14 @@ class ct_dataset(Dataset):
         if mode == 'train':
             input_ = [f for f in input_path if test_patient not in f]
             target_ = [f for f in target_path if test_patient not in f]
+            
+            print('input_ is : ', input_)
+            print('target_ is : ', target_)
+            
             if load_mode == 0: # batch data load
                 self.input_ = input_
                 self.target_ = target_
+                
             else: # all data load
                 self.input_ = [np.load(f) for f in input_]
                 self.target_ = [np.load(f) for f in target_]
