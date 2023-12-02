@@ -33,6 +33,7 @@ def read_image(image_path):
     
     return np.expand_dims(data, axis=-1)
 
+
 class PatchExtractor(tf.keras.layers.Layer):
     def __init__(self, patch_size, stride, name):
         super(PatchExtractor, self).__init__(name=name)
@@ -97,13 +98,14 @@ def load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../Dataset/
 
     patch_extractor = None
     if load_as_patches:
-        patch_extractor = PatchExtractor(patch_size=64, stride=16, name="patch_extractor")
+        patch_extractor = PatchExtractor(patch_size=64, stride=64, name="patch_extractor")
 
     noisy_image_dataset = _create_image_dataset(noisy_image_paths, patch_extractor)
     clean_image_dataset = _create_image_dataset(clean_image_paths, patch_extractor)
 
     training_dataset = tf.data.Dataset.zip((noisy_image_dataset, clean_image_dataset))
     training_dataset = training_dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
+    print('loaded dataset')
     
     # Shuffle entire dataset.
     training_dataset = training_dataset.shuffle(training_dataset.cardinality())
