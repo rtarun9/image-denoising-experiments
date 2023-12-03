@@ -62,7 +62,7 @@ if __name__ == "__main__":
     parser.add_argument('--print_iters', type=int, default=20)
     parser.add_argument('--decay_iters', type=int, default=3000)
     parser.add_argument('--save_iters', type=int, default=1000)
-    parser.add_argument('--test_iters', type=int, default=17000)
+    parser.add_argument('--test_iters', type=int, default=27000)
 
     parser.add_argument('--n_d_train', type=int, default=4)
 
