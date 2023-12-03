@@ -1,6 +1,7 @@
 import numpy as np
 import pydicom
 import os
+from skimage.transform import resize
 
 def load_scan(path):
     # referred from https://www.kaggle.com/gzuidhof/full-preprocessing-tutorial
@@ -29,7 +30,11 @@ def read_image(image_path):
     MAX_B= 3072.0
     data = (full_pixels - MIN_B) / (MAX_B - MIN_B)
     
-    return np.squeeze(np.expand_dims(data, axis=-1))
+    data = np.squeeze(data, axis=0)
+    data = resize(data, (data.shape[0] // 2, data.shape[1] // 2), anti_aliasing=True)
+
+
+    return data
      
 
 def denormalize(image):
