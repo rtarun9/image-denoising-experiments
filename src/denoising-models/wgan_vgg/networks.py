@@ -120,3 +120,8 @@ class WGAN_VGG(nn.Module):
         gradients = gradients.view(gradients.size(0), -1)
         gradient_penalty = ((gradients.norm(2, dim=1) -1)**2).mean() * lambda_
         return gradient_penalty
+
+    def forward(self, x):
+        # Forward pass through the generator
+        out = self.generator(x)
+        return out
