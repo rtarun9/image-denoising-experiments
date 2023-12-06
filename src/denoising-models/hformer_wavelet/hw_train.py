@@ -1,13 +1,12 @@
+from logging import PercentStyle
 import sys
 sys.path.append('../hformer_vit/')
-sys.path.append('../')
-sys.path.append('../model')
+
 import tensorflow as tf
 import numpy as np
 import pywt
 
 from tf_data_importer import load_training_tf_dataset
-from custom_loss_functions import mse_ssim_loss
 
 from model.hformer_model_extended import get_hformer_model
 
@@ -49,6 +48,11 @@ def psnr(y_true, y_pred):
 
     return psnr_value 
 
+def min_max_normalize(img):
+    min_val = tf.reduce_min(img)
+    max_val = tf.reduce_max(img)
+    normalized_img = (img - min_val) / (max_val - min_val)
+    return normalized_img
 
 def dwt_high(x):
     x1 = x[:, 0::2, 0::2, :]  # x(2i−1, 2j−1)
@@ -89,6 +93,8 @@ def perceptual_loss_low(y_true, y_pred):
     return mse_low_freq
 
 def perceptual_wavelet_loss(y_true, y_pred):
+    y_true, y_pred = min_max_normalize(y_true), min_max_normalize(y_pred)
+    
     loss_low = perceptual_loss_low(y_true, y_pred)
     loss_high = perceptual_loss_high(y_true, y_pred)
     
@@ -99,6 +105,7 @@ def perceptual_wavelet_loss(y_true, y_pred):
     
 perceptual_loss_high.__name__ = "perceptual_loss_high"
 perceptual_loss_low.__name__ = "perceptual_loss_low"
+
 
 def train_model(training_dataset, epochs, trained_model_file_name, history_file_name):        
     # Testing if model can be compiled
@@ -114,11 +121,11 @@ def train_model(training_dataset, epochs, trained_model_file_name, history_file_
 
     model.build(input_shape=(None, 64, 64, 1)) 
 
-    model.compile(tf.keras.optimizers.Adam(learning_rate=1.0 * 10**-5), metrics=[psnr, 'accuracy'], loss=perceptual_wavelet_loss)
+    model.compile(tf.keras.optimizers.Adam(learning_rate=1.0 * 10**-5), metrics=[psnr, 'accuracy'], loss=perceptual_wavelet_loss, run_eagerly=True)
     print(model.summary())
     
     # Saving the model weights after every epoch.
-    check_point_filepath="saved_weights/hformer_wavelet_epochs_{epoch:02d}.h5"
+    check_point_filepath="normalized_saved_weights/hformer_wavelet_epochs_{epoch:02d}.h5"
     checkpoint = ModelCheckpoint(check_point_filepath, monitor='val_accuracy', verbose=1, save_best_only=False, save_weights_only=True)
     
     history = model.fit(train_dataset, epochs=epochs,  verbose=1, validation_data=val_dataset, callbacks=[checkpoint], batch_size=1)
@@ -131,14 +138,14 @@ def train_model(training_dataset, epochs, trained_model_file_name, history_file_
     np.save(history_file_name, history.history)
     
 def main():
-    training_dataset = load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_as_patches=True, load_limited_images=True, num_images_to_load=2)
+    training_dataset = load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_as_patches=True, load_limited_images=True, num_images_to_load=1000)
 
     trained_model_file_name = 'hformer_wavelet.h5'
     history_file_name = 'hformer_wavelet.npy'
     
     print('training dataset' , training_dataset)
     
-    train_model(training_dataset, 200, trained_model_file_name, history_file_name)
+    train_model(training_dataset, 50, trained_model_file_name, history_file_name)
     
     print('model trained successfully with name : ', trained_model_file_name)
     print('saved history in file with name : ', history_file_name)
