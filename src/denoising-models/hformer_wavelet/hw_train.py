@@ -1,6 +1,5 @@
 from logging import PercentStyle
 import sys
-sys.path.append('../hformer_vit/')
 
 import tensorflow as tf
 import numpy as np
@@ -8,7 +7,7 @@ import pywt
 
 from tf_data_importer import load_training_tf_dataset
 
-from model.hformer_model_extended import get_hformer_model
+from hformer_model_extended import get_hformer_model
 
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
@@ -19,6 +18,12 @@ import tensorflow as tf
 from tensorflow import keras
 from keras import layers, models
 from keras import backend as K
+
+from tensorflow import keras
+import tensorflow_wavelets.Layers.DWT as DWT
+import tensorflow_wavelets.Layers.DTCWT as DTCWT
+import tensorflow_wavelets.Layers.DMWT as DMWT
+
 
 config = ConfigProto()
 config.gpu_options.allow_growth = True
