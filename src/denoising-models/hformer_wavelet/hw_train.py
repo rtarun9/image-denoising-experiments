@@ -124,16 +124,13 @@ def train_model(training_dataset, epochs, trained_model_file_name, history_file_
     # Train validation split.
     train_dataset, val_dataset = split_dataset(training_dataset, split_ratio=0.8)
 
-    model.build(input_shape=(None, 64, 64, 1)) 
+    model.build(input_shape=(100, 64, 64, 1)) 
 
     model.compile(tf.keras.optimizers.Adam(learning_rate=1.0 * 10**-5), metrics=[psnr, 'accuracy'], loss=perceptual_wavelet_loss, run_eagerly=True)
     print(model.summary())
     
-    # Saving the model weights after every epoch.
-    check_point_filepath="normalized_saved_weights/hformer_wavelet_epochs_{epoch:02d}.h5"
-    checkpoint = ModelCheckpoint(check_point_filepath, monitor='val_accuracy', verbose=1, save_best_only=False, save_weights_only=True)
     
-    history = model.fit(train_dataset, epochs=epochs,  verbose=1, validation_data=val_dataset, callbacks=[checkpoint], batch_size=1)
+    history = model.fit(train_dataset, epochs=epochs,  verbose=1, validation_data=val_dataset, batch_size=2)
     
     # Save the model weights to an HDF5 file
     # We cant use model.save as subclassing API is used here.
@@ -143,7 +140,7 @@ def train_model(training_dataset, epochs, trained_model_file_name, history_file_
     np.save(history_file_name, history.history)
     
 def main():
-    training_dataset = load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_as_patches=True, load_limited_images=True, num_images_to_load=1000)
+    training_dataset = load_training_tf_dataset(low_dose_ct_training_dataset_dir='../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data', load_as_patches=True, load_limited_images=True, num_images_to_load=1000)
 
     trained_model_file_name = 'hformer_wavelet.h5'
     history_file_name = 'hformer_wavelet.npy'
