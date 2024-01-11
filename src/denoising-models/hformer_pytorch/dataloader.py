@@ -46,7 +46,7 @@ def load_image_paths(low_dose_ct_training_dataset_dir, mode, validation_patient_
     for root, folder_name, file_names in os.walk(low_dose_ct_training_dataset_dir):
         for file_name in file_names:
             if "FD" in file_name:   
-                if (mode == "train" and validation_patient_number not in file_name) or (mode == "test" and validation_patient_number in file_name):
+                if (mode == "train" and validation_patient_number not in file_name) or (mode == "validation" and validation_patient_number in file_name):
                     file_path = os.path.join(root, file_name)
                     clean_image_paths.append(file_path)
 
@@ -72,8 +72,10 @@ class LDCTDataset(Dataset):
         self.root_dataset_dir = root_dataset_dir
         self.noisy_image_paths, self.clean_image_paths = load_image_paths(root_dataset_dir, mode) 
 
+        print("number of image paths : ", len(self.noisy_image_paths))
+        
     def __len__(self):
-        return len(self.noisy_image_paths) * 64 # 64 is number of patches per image.
+        return len(self.noisy_image_paths) * 63 # 64 is number of patches per image.
     
     # Returns the patches of image at index i
     def __getitem__(self, idx):
@@ -87,7 +89,7 @@ def get_train_and_validation_dataloader(root_dataset_dir, shuffle=True):
     validation_data = LDCTDataset(root_dataset_dir, "validation")    
  
     print(f"Train and validation data image len : {len(train_data)}, {len(validation_data)}")
-    
+     
     train_dataloader = DataLoader(train_data, batch_size=64, shuffle=shuffle)
     validation_dataloader = DataLoader(validation_data, batch_size=64, shuffle=shuffle)
     

@@ -41,7 +41,7 @@ class ConvBlock(torch.nn.Module):
         
         self.zero_padding = torch.nn.ZeroPad2d(padding=3)
         self.dwconv = DepthWiseSeparableConv2d(num_channels, num_channels, 7)
-        self.layer_norm = torch.nn.LayerNorm([64, num_channels, width + 6, height + 6])
+        self.layer_norm = torch.nn.LayerNorm([64, num_channels, width + 6, height + 6], elementwise_affine=False)
         self.linear_1 = torch.nn.Conv2d(num_channels, num_channels * 4, kernel_size=7)
         self.gelu = torch.nn.GELU()
         self.linear_2 = torch.nn.Conv2d(num_channels * 4, num_channels, kernel_size=1) 
