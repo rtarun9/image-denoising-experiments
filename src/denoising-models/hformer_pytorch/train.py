@@ -1,14 +1,22 @@
 import torch
 from hformer_model import HformerModel
-from dataloader import get_train_and_validation_dataloader
+from dataloader import get_train_and_validation_dataloader, patch_extractor
 import numpy as np
 from torchinfo import summary
+import os
 
 def train_model(model, epochs):
     print('model summary : ')
     summary(model, input_size=(64, 64, 64, 1))
+ 
+    number_training_images = 2 
+    number_validation_images = 1
     
-    training_dataloader, validation_dataloader = get_train_and_validation_dataloader("../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data", shuffle=True)
+    training_dataset_path = "../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data"
+    if not os.path.exists(training_dataset_path):
+        training_dataset_path = "../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data"
+
+    training_dataloader, validation_dataloader = get_train_and_validation_dataloader(training_dataset_path, shuffle=True)
    
     loss_fn = torch.nn.MSELoss()
    
@@ -20,38 +28,67 @@ def train_model(model, epochs):
         running_loss = 0
        
         for i, data in enumerate(training_dataloader):
-            noisy, clean = data
+            _noisy, _clean = data
+
+            noisy_patches = patch_extractor(_noisy.numpy())
+            clean_patches = patch_extractor(_clean.numpy()) 
+
+            for i in range(len(noisy_patches)):
+                noisy = noisy_patches[i]
+                clean = clean_patches[i]
+               
+                noisy = noisy.to('cuda') 
+                clean = clean.to('cuda')
+            
+                optimizer.zero_grad()
            
-            optimizer.zero_grad()
+                output = model(noisy)
            
-            output = model(noisy)
+                loss = loss_fn(output, clean)
+                loss.backward()
            
-            loss = loss_fn(output, clean)
-            loss.backward()
+                optimizer.step()
            
-            optimizer.step()
-           
-            running_loss += loss.item()
-       
+                running_loss += loss.item()
+      
+            if i == number_training_images:
+                break
+             
+        print('train image index : ', i)
+            
         avg_loss = running_loss / len(training_dataloader)
        
         running_vloss = 0
        
         with torch.no_grad():
             for i, vdata in enumerate(validation_dataloader):
-                vnoisy, vclean = vdata
+                _vnoisy, _vclean = vdata
+                
+                noisy_patches = patch_extractor(_vnoisy.numpy())
+                clean_patches = patch_extractor(_vclean.numpy())
+                
+                for i in range(len(noisy_patches)):
+                    vnoisy, vclean = noisy_patches[i], clean_patches[i]
+                    
+                    vnoisy = vnoisy.to('cuda')
+                    vclean = vclean.to('cuda')
+                    
+                    voutput = model(vnoisy)
+                    vloss = loss_fn(voutput, vclean)
                
-                voutput = model(vnoisy)
-                vloss = loss_fn(voutput, vclean)
-               
-                running_vloss += vloss
+                    running_vloss += vloss
+            
+                if i == number_validation_images:
+                    break 
+
+                print('validation image index : ', i) 
         
-        avg_vloss = running_vloss / len(validation_dataloader)
+            avg_vloss = running_vloss / len(validation_dataloader)
         
-        model_path = 'model_{}'.format(epoch)
-        torch.save(model.state_dict(), model_path)
+            model_path = 'weights/model_{}.pth'.format(epoch)
+            torch.save(model.state_dict(), model_path)
         
-        print('training and validation loss : ', avg_loss, avg_vloss)
+            print('training and validation loss : ', avg_loss, avg_vloss)
         
              
-train_model(HformerModel(num_channels=64, width=64, height=64), epochs=1)
+train_model(HformerModel(num_channels=64, width=64, height=64).to('cuda'), epochs=2)

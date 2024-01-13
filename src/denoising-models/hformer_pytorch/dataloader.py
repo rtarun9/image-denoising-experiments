@@ -1,4 +1,5 @@
 import pydicom
+import torch
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
 
@@ -59,13 +60,13 @@ def load_image_paths(low_dose_ct_training_dataset_dir, mode, validation_patient_
 def patch_extractor(image, patch_width=64, patch_height=64):
     image = image.copy()
     
-    image_height, image_width, channels = image.shape
+    num_images, image_height, image_width, channels = image.shape
     
-    patches = image.reshape(image_height // patch_height, patch_height, image_width // patch_width, patch_width, channels)
-    patches = patches.swapaxes(1, 2)
-    patches = patches.reshape(-1, patch_height, patch_width, channels)
+    patches = image.reshape(num_images, image_height // patch_height, patch_height, image_width // patch_width, patch_width, channels)
+    patches = patches.swapaxes(2, 3)
+    patches = patches.reshape(num_images, (image_height // patch_height) * (image_width // patch_width), patch_height, patch_width, channels)
     
-    return patches 
+    return torch.from_numpy(patches)
      
 class LDCTDataset(Dataset):
     def __init__(self, root_dataset_dir, mode):
@@ -75,22 +76,21 @@ class LDCTDataset(Dataset):
         print("number of image paths : ", len(self.noisy_image_paths))
         
     def __len__(self):
-        return len(self.noisy_image_paths) * 63 # 64 is number of patches per image.
+        return len(self.noisy_image_paths) 
     
-    # Returns the patches of image at index i
     def __getitem__(self, idx):
-        noisy_image = read_image(self.noisy_image_paths[idx // 64])
-        clean_image = read_image(self.clean_image_paths[idx // 64])
+        noisy_image = read_image(self.noisy_image_paths[idx])
+        clean_image = read_image(self.clean_image_paths[idx])
         
-        return patch_extractor(noisy_image)[idx % 64], patch_extractor(clean_image)[idx % 64]
-    
+        return noisy_image, clean_image
+     
 def get_train_and_validation_dataloader(root_dataset_dir, shuffle=True):
     train_data = LDCTDataset(root_dataset_dir, "train")
     validation_data = LDCTDataset(root_dataset_dir, "validation")    
  
     print(f"Train and validation data image len : {len(train_data)}, {len(validation_data)}")
      
-    train_dataloader = DataLoader(train_data, batch_size=64, shuffle=shuffle)
-    validation_dataloader = DataLoader(validation_data, batch_size=64, shuffle=shuffle)
+    train_dataloader = DataLoader(train_data, batch_size=32, shuffle=shuffle)
+    validation_dataloader = DataLoader(validation_data, batch_size=32, shuffle=shuffle)
     
     return train_dataloader, validation_dataloader
