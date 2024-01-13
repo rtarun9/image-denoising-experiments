@@ -9,7 +9,7 @@ def train_model(model, epochs):
     print('model summary : ')
     summary(model, input_size=(64, 64, 64, 1))
  
-    number_training_images = 2 
+    number_training_images = 20 
     number_validation_images = 1
     
     training_dataset_path = "../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data"
@@ -28,28 +28,24 @@ def train_model(model, epochs):
         running_loss = 0
        
         for i, data in enumerate(training_dataloader):
-            _noisy, _clean = data
-
-            noisy_patches = patch_extractor(_noisy.numpy())
-            clean_patches = patch_extractor(_clean.numpy()) 
-
-            for i in range(len(noisy_patches)):
-                noisy = noisy_patches[i]
-                clean = clean_patches[i]
-               
-                noisy = noisy.to('cuda') 
-                clean = clean.to('cuda')
+            noisy, clean = data
             
-                optimizer.zero_grad()
+            noisy = torch.squeeze(noisy, 0)
+            clean = torch.squeeze(clean, 0)
+            
+            noisy = noisy.to('cuda') 
+            clean = clean.to('cuda')
+            
+            optimizer.zero_grad()
            
-                output = model(noisy)
+            output = model(noisy)
            
-                loss = loss_fn(output, clean)
-                loss.backward()
+            loss = loss_fn(output, clean)
+            loss.backward()
            
-                optimizer.step()
+            optimizer.step()
            
-                running_loss += loss.item()
+            running_loss += loss.item()
       
             if i == number_training_images:
                 break
@@ -62,21 +58,18 @@ def train_model(model, epochs):
        
         with torch.no_grad():
             for i, vdata in enumerate(validation_dataloader):
-                _vnoisy, _vclean = vdata
-                
-                noisy_patches = patch_extractor(_vnoisy.numpy())
-                clean_patches = patch_extractor(_vclean.numpy())
-                
-                for i in range(len(noisy_patches)):
-                    vnoisy, vclean = noisy_patches[i], clean_patches[i]
+                vnoisy, vclean = vdata
+           
+                vnoisy = torch.squeeze(vnoisy, 0)
+                vclean = torch.squeeze(vclean, 0)
+                     
+                vnoisy = vnoisy.to('cuda')
+                vclean = vclean.to('cuda')
                     
-                    vnoisy = vnoisy.to('cuda')
-                    vclean = vclean.to('cuda')
-                    
-                    voutput = model(vnoisy)
-                    vloss = loss_fn(voutput, vclean)
+                voutput = model(vnoisy)
+                vloss = loss_fn(voutput, vclean)
                
-                    running_vloss += vloss
+                running_vloss += vloss
             
                 if i == number_validation_images:
                     break 

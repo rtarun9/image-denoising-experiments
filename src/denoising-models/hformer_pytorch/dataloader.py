@@ -60,11 +60,10 @@ def load_image_paths(low_dose_ct_training_dataset_dir, mode, validation_patient_
 def patch_extractor(image, patch_width=64, patch_height=64):
     image = image.copy()
     
-    num_images, image_height, image_width, channels = image.shape
-    
-    patches = image.reshape(num_images, image_height // patch_height, patch_height, image_width // patch_width, patch_width, channels)
+    image_height, image_width, channels = image.shape
+    patches = image.reshape(-1, image_height // patch_height, patch_height, image_width // patch_width, patch_width, channels)
     patches = patches.swapaxes(2, 3)
-    patches = patches.reshape(num_images, (image_height // patch_height) * (image_width // patch_width), patch_height, patch_width, channels)
+    patches = patches.reshape(-1, patch_height, patch_width, channels)
     
     return torch.from_numpy(patches)
      
@@ -79,18 +78,19 @@ class LDCTDataset(Dataset):
         return len(self.noisy_image_paths) 
     
     def __getitem__(self, idx):
-        noisy_image = read_image(self.noisy_image_paths[idx])
-        clean_image = read_image(self.clean_image_paths[idx])
-        
-        return noisy_image, clean_image
+        noisy_image = patch_extractor(read_image(self.noisy_image_paths[idx]))
+        clean_image = patch_extractor(read_image(self.clean_image_paths[idx]))
+
+        return noisy_image, clean_image 
      
 def get_train_and_validation_dataloader(root_dataset_dir, shuffle=True):
+
     train_data = LDCTDataset(root_dataset_dir, "train")
     validation_data = LDCTDataset(root_dataset_dir, "validation")    
  
     print(f"Train and validation data image len : {len(train_data)}, {len(validation_data)}")
      
-    train_dataloader = DataLoader(train_data, batch_size=32, shuffle=shuffle)
-    validation_dataloader = DataLoader(validation_data, batch_size=32, shuffle=shuffle)
+    train_dataloader = DataLoader(train_data, batch_size=1, shuffle=shuffle)
+    validation_dataloader = DataLoader(validation_data, batch_size=1, shuffle=shuffle)
     
     return train_dataloader, validation_dataloader
