@@ -1,14 +1,22 @@
 import torch
-from hformer_model import HformerModel
-from dataloader import get_train_and_validation_dataloader
+from hformer_sa_model import HformerSAModel
+from dataloader import get_train_and_validation_dataloader, patch_extractor
 import numpy as np
 from torchinfo import summary
+import os
 
 def train_model(model, epochs):
     print('model summary : ')
     summary(model, input_size=(64, 64, 64, 1))
+ 
+    number_training_images = 20 
+    number_validation_images = 1
     
-    training_dataloader, validation_dataloader = get_train_and_validation_dataloader("../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data", shuffle=True)
+    training_dataset_path = "../../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data"
+    if not os.path.exists(training_dataset_path):
+        training_dataset_path = "../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data"
+
+    training_dataloader, validation_dataloader = get_train_and_validation_dataloader(training_dataset_path, shuffle=True)
    
     loss_fn = torch.nn.MSELoss()
    
@@ -21,6 +29,10 @@ def train_model(model, epochs):
        
         for i, data in enumerate(training_dataloader):
             noisy, clean = data
+            
+            noisy = torch.squeeze(noisy, 0)
+            clean = torch.squeeze(clean, 0)
+            
             noisy = noisy.to('cuda') 
             clean = clean.to('cuda')
             
@@ -35,9 +47,10 @@ def train_model(model, epochs):
            
             running_loss += loss.item()
       
-            if i == 10:
-                break 
-            print('train image index : ', i)
+            if i == number_training_images:
+                break
+             
+        print('train image index : ', i)
             
         avg_loss = running_loss / len(training_dataloader)
        
@@ -46,6 +59,10 @@ def train_model(model, epochs):
         with torch.no_grad():
             for i, vdata in enumerate(validation_dataloader):
                 vnoisy, vclean = vdata
+           
+                vnoisy = torch.squeeze(vnoisy, 0)
+                vclean = torch.squeeze(vclean, 0)
+                     
                 vnoisy = vnoisy.to('cuda')
                 vclean = vclean.to('cuda')
                     
@@ -54,15 +71,17 @@ def train_model(model, epochs):
                
                 running_vloss += vloss
             
-                if i == 5:
+                if i == number_validation_images:
                     break 
+
                 print('validation image index : ', i) 
-        avg_vloss = running_vloss / len(validation_dataloader)
         
-        model_path = 'model_{}.pth'.format(epoch)
-        torch.save(model.state_dict(), model_path)
+            avg_vloss = running_vloss / len(validation_dataloader)
         
-        print('training and validation loss : ', avg_loss, avg_vloss)
+            model_path = 'weights/model_{}.pth'.format(epoch)
+            torch.save(model.state_dict(), model_path)
+        
+            print('training and validation loss : ', avg_loss, avg_vloss)
         
              
-train_model(HformerModel(num_channels=64, width=64, height=64).to('cuda'), epochs=2)
+train_model(HformerSAModel(num_channels=64, width=64, height=64).to('cuda'), epochs=2)
