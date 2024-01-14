@@ -1,0 +1,12 @@
+#PBS -l select=1:ncpus=1
+#PBS -N sa_hformer 
+#PBS -V
+#PBS -q testq
+
+cd /home/$USER/image-denoising/anaconda3/bin 
+source activate
+conda activate denoising-conda-env-py3.9
+conda env config vars set LD_LIBRARY_PATH=$CONDA_PREFIX/lib
+cd /home/$USER/image-denoising/Code/hformer_wavelet_self_attention
+python hw_train.py
+
