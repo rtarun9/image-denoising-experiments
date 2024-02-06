@@ -218,7 +218,6 @@ class XModel(torch.nn.Module):
         #print('coeffs shape : ', lf.shape, hf_1.shape, hf_2.shape, hf_3.shape) 
 
         op = ptwt.waverec2((lf, (hf_1, hf_2, hf_3)), pywt.Wavelet('haar'))
-        op = torch.transpose(op, 1, 2)
         #print('waverec2 shape : ', op.shape)
 
         return torch.unsqueeze(op, -1) + images
