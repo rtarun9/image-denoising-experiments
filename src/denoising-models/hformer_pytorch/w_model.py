@@ -6,7 +6,7 @@ from transformers import ConvNextV2Config, ConvNextV2Model
 import matplotlib.pyplot as plt
 import numpy as np
 sys.path.append('../')
-from dataloader import get_train_and_validation_dataloader, patch_extractor
+from dataloader import get_train_and_validation_dataloader
 
 
 
