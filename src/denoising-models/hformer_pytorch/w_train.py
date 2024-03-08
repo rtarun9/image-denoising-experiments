@@ -1,6 +1,6 @@
 
 import torch
-from w_model import WModel 
+from w_b_model import WModel 
 from dataloader import get_train_and_validation_dataloader, patch_extractor
 import numpy as np
 from torchinfo import summary
@@ -79,10 +79,10 @@ def train_model(model, epochs):
         
             avg_vloss = running_vloss / len(validation_dataloader)
         
-            model_path = 'weights/model_{}.pth'.format(epoch)
+            model_path = 'weights/wb_model_{}.pth'.format(epoch)
             torch.save(model.state_dict(), model_path)
         
             print('training and validation loss : ', avg_loss, avg_vloss)
         
              
-train_model(WModel(num_channels=16, width=64, height=64).to('cuda'), epochs=2)
+train_model(WModel(num_channels=8, width=64, height=64).to('cuda'), epochs=2)
