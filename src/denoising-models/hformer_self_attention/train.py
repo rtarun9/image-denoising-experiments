@@ -1,5 +1,5 @@
 import torch
-from hformer_sa_model import HformerSAModel
+from sa_b_model import SABModel
 from dataloader import get_train_and_validation_dataloader, patch_extractor
 import numpy as np
 from torchinfo import summary
@@ -20,7 +20,7 @@ def train_model(model, epochs):
    
     loss_fn = torch.nn.MSELoss()
    
-    optimizer = torch.optim.AdamW(params = model.parameters(), lr=0.001)
+    optimizer = torch.optim.AdamW(params = model.parameters(), lr=0.0001)
    
     for epoch in range(epochs):
         model.train(True)
@@ -78,10 +78,10 @@ def train_model(model, epochs):
         
             avg_vloss = running_vloss / len(validation_dataloader)
         
-            model_path = 'weights/model_{}.pth'.format(epoch)
+            model_path = 'weights/sab_model_{}.pth'.format(epoch)
             torch.save(model.state_dict(), model_path)
         
             print('training and validation loss : ', avg_loss, avg_vloss)
         
              
-train_model(HformerSAModel(num_channels=64, width=64, height=64).to('cuda'), epochs=2)
+train_model(SABModel(num_channels=4).to('cuda'), epochs=2)
