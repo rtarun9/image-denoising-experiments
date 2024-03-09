@@ -1,2 +1,2 @@
-y_model/
-!yb_model_203.pth
+y_model/*
+!y_model/yb_model_203.pth
