@@ -25,8 +25,8 @@ def get_pixels_hu(slices):
 def read_image(image_path):
     full_pixels =get_pixels_hu(load_scan(image_path))
     
-    MIN_B= -1024.0
-    MAX_B= 3072.0
+    MIN_B= -1000.0
+    MAX_B= 400.0
     data = (full_pixels - MIN_B) / (MAX_B - MIN_B)
     
     return np.squeeze(np.expand_dims(data, axis=-1))
@@ -34,14 +34,14 @@ def read_image(image_path):
 
 def denormalize(image):
     img = image.copy()
-    MIN_B= -1024.0
-    MAX_B= 3072.0    
+    MIN_B= -1000.0
+    MAX_B= 400.0
 
     return img * (MAX_B - MIN_B) + MIN_B
 
 def trunc(mat):
-    min = -160.0
-    max = 240.0
+    min = -1000.0
+    max = 400.0
     
     mat[mat <= min] = min
     mat[mat >= max] = max
