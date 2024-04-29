@@ -1,59 +1,44 @@
-import tkinter as tk
+import dearpygui.dearpygui as dpg
 
-# Window setup.
-window = tk.Tk()
-window.title("LDCT Visualizer")
-window.geometry("1280x720")
+dpg.create_context()
 
-# Top title.
-title_frame = tk.Frame(window)
-title_frame.pack(side=tk.TOP, fill=tk.X)
+def save_init():
+    dpg.save_init_file("dpg.ini")
 
-main_title = tk.Label(title_frame, text="LDCT Visualizer", font=("Arial", 18))
-main_title.pack(padx=5, pady=5)
+dpg.configure_app(init_file="dpg.ini")  
+with dpg.window(label="Config Menu", tag="config_menu"):
 
-# Left frame.
-left_frame = tk.Frame(window)
-left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
+    # Patient ID
+    dpg.add_text('Patient ID')
+    patient_ids = [
+        'L067',
+        'L096',
+        'L109',
+        'L143',
+        'L192',
+        'L286',
+        'L291',
+        'L310',
+        'L333',
+        'L506'
+    ]
+    dpg.add_combo(patient_ids, default_value=patient_ids[0])
 
-# Patient ID list setup.
-patient_ids = [
-    'L067',
-    'L096',
-    'L109',
-    'L143',
-    'L192',
-    'L286',
-    'L291',
-    'L310',
-    'L333',
-    'L506'
-]
+    # Slice Type
+    dpg.add_text('Slice Type')
+    slice_type= [
+        '1mm B30',
+        '1mm D45',
+        '3mm B30',
+        '3mm D45'
+    ]
+    dpg.add_combo(slice_type, default_value=slice_type[0])
 
-patient_id_label = tk.Label(left_frame, text="Patient ID:")
-patient_id_label.pack()
+    dpg.add_button(label="Save UI config", callback=lambda: save_init)
 
-patient_id_widget = tk.StringVar(left_frame)
-patient_id_widget.set(patient_ids[0])
 
-patient_option_menu = tk.OptionMenu(left_frame, patient_id_widget, *patient_ids)
-patient_option_menu.pack()
-
-# Slice type option.
-slice_types= [
-    '1mm B30',
-    '1mm B45',
-    '3mm B30',
-    '3mm B45',
-]
-
-slice_type_label = tk.Label(left_frame, text="Slice Types:")
-slice_type_label.pack()
-
-slice_type_widget = tk.StringVar(left_frame)
-slice_type_widget.set(slice_types[0])
-
-slice_type_option_menu = tk.OptionMenu(left_frame, slice_type_widget, *slice_types)
-slice_type_option_menu.pack()
-
-window.mainloop()
+dpg.create_viewport(title='LDCT Visualizer', width=1280, height=720)
+dpg.setup_dearpygui()
+dpg.show_viewport()
+dpg.start_dearpygui()
+dpg.destroy_context()
