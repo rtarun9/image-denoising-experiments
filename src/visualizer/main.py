@@ -10,6 +10,8 @@ dpg.create_context()
 def save_init():
     dpg.save_init_file("dpg.ini")
 
+dpg.configure_app(init_file="dpg.ini")  
+
 selected_patient_id = ""
 selected_slice_type = ""
 
@@ -27,7 +29,29 @@ def get_selected_item(sender, app_data, user_data):
         selected_slice_type = dpg.get_value(sender)
         print('selected slice type: ', selected_slice_type)
 
-dpg.configure_app(init_file="dpg.ini")  
+fd_array = []
+
+texture_data = []
+for i in range(0, 512* 512):
+    texture_data.append(255 / 255)
+    texture_data.append(0)
+    texture_data.append(255 / 255)
+    texture_data.append(255 / 255)
+
+with dpg.texture_registry(show=True):
+    dpg.add_raw_texture(width=512, height=512, default_value=np.array(texture_data), format=dpg.mvFormat_Float_rgba, tag="texture_tag")
+
+
+def run_models_and_get_outputs(sender, app_data, user_data):
+    print('run models with output')
+    global fd_array
+
+    fd_array = run_models(selected_patient_id, selected_slice_type)
+
+    print('len fd array : ', len(fd_array))
+    print(fd_array.shape)
+    texture_data = fd_array[0]
+
 with dpg.window(label="Config Menu", tag="config_menu"):
 
     # Patient ID
@@ -44,7 +68,7 @@ with dpg.window(label="Config Menu", tag="config_menu"):
         'L333',
         'L506'
     ]
-    dpg.add_combo(patient_ids, default_value=patient_ids[0], callback=get_selected_item)
+    dpg.add_combo(patient_ids,  callback=get_selected_item)
 
     # Slice Type
     dpg.add_text('Slice Type')
@@ -54,28 +78,11 @@ with dpg.window(label="Config Menu", tag="config_menu"):
         '3mm B30',
         '3mm D45'
     ]
-    dpg.add_combo(slice_type, default_value=slice_type[0], callback=get_selected_item)
+    dpg.add_combo(slice_type,  callback=get_selected_item)
 
-    #dpg.add_button(label="Run Visualizer", callback=lamba: run_models, )
+    dpg.add_button(label="Run Visualizer", callback=lambda: run_models_and_get_outputs(None, None, None))
 
     dpg.add_button(label="Save UI config", callback=lambda: save_init)
-
-with dpg.window(label="QD", tag="qd_window"):
-    fig = plt.figure()
-    canvas = FigureCanvasAgg(fig)
-    canvas.draw()
-    buf = canvas.buffer_rgba()
-    image = np.asarray(buf)
-    image = image.astype(np.float32) / 255
-
-    with dpg.texture_registry():
-        dpg.add_raw_texture(
-            250, 250, image, format=dpg.mvFormat_Float_rgba, tag="texture_id"
-        )
-
-    dpg.add_image("texture_id")
-
-
 
 dpg.create_viewport(title='LDCT Visualizer', width=1280, height=720)
 dpg.setup_dearpygui()
