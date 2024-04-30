@@ -31,7 +31,6 @@ def read_image(image_path):
     
     return np.squeeze(np.expand_dims(data, axis=-1))
      
-
 def denormalize(image):
     img = image.copy()
     MIN_B= -1024.0
@@ -51,7 +50,7 @@ def trunc(mat):
 # A function that returns training images from the LowDoseCT Challenge dataset (link : https://www.aapm.org/grandchallenge/lowdosect/)
 # If load_limited_images is True, it will load number of images that are specified in images_to_load.
 # Else, the entire dataset will be loaded.
-def load_training_images(patient_id, slice_type, low_dose_ct_training_dataset_dir='../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data'):
+def load_training_images(number_of_images, patient_id, slice_type, low_dose_ct_training_dataset_dir='../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data'):
     print('Log : patient_id : ', patient_id, ' slice type : ', slice_type)
     
     training_filepaths_x = []   # i.e the QD (quarter dose) images (noisy images)
@@ -73,6 +72,9 @@ def load_training_images(patient_id, slice_type, low_dose_ct_training_dataset_di
 
     training_filepaths_x.sort()
     training_filepaths_y.sort()
+
+    training_filepaths_x = training_filepaths_x[:number_of_images]
+    training_filepaths_y = training_filepaths_y[:number_of_images]
 
     training_images_x = np.array([np.expand_dims(read_image(path), axis=-1) for path in training_filepaths_x])
     training_images_y = np.array([np.expand_dims(read_image(path), axis=-1) for path in training_filepaths_y])

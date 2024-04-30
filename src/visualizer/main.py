@@ -8,7 +8,7 @@ from model_runner import run_models
 # Globla variables
 selected_patient_id = ""
 selected_slice_type = ""
-selected_number_of_images = 0
+selected_number_of_images = 1
 
 model_outputs = []
 
@@ -20,6 +20,15 @@ def save_init():
 
 dpg.configure_app(init_file="dpg.ini")  
 
+
+image_slider_number = 0
+def image_slider_get_selected_item(sender, app_data, user_data):
+    global image_slider_number 
+
+    image_slider_number = app_data
+    print(app_data)
+    print(image_slider_number)
+    update_texture(None, None, None)
 
 def get_selected_item(sender, app_data, user_data):
     global selected_patient_id, selected_slice_type, selected_number_of_images
@@ -36,32 +45,28 @@ def run_models_and_get_outputs(sender, app_data, user_data):
     global model_outputs 
 
     model_outputs = run_models(selected_patient_id, selected_slice_type, selected_number_of_images)
+    update_texture(None, None, None)
 
 texture_data = []
-for i in range(0, 512* 512):
+for i in range(0, 512* 512 * 2):
     texture_data.append(255 / 255)
     texture_data.append(1)
     texture_data.append(255 / 255)
     texture_data.append(255 / 255)
 
 with dpg.texture_registry(show=False):
-    dpg.add_dynamic_texture(width=512, height=512, default_value=texture_data, tag="texture_tag")
+    dpg.add_dynamic_texture(width=1024, height=512, default_value=texture_data, tag="texture_tag")
 
 
 def update_texture(sender, app_data, user_data):
+    global image_slider_number 
     if len(model_outputs) > 0:
-        print('shape : ', model_outputs[0].shape)
-        new_texture_source_data = model_outputs[0]
-        new_texture_source_data = new_texture_source_data.flatten()
+        if image_slider_number >= len(model_outputs):
+            image_slider_number = len(model_outputs) - 1
+            
+        new_texture_source_data = model_outputs[image_slider_number]
 
-        new_texture_data = []
-        for i in range(0, 512 * 512):
-            new_texture_data.append(new_texture_source_data[i])
-            new_texture_data.append(new_texture_source_data[i])
-            new_texture_data.append(new_texture_source_data[i])
-            new_texture_data.append(1.0)
-
-        dpg.set_value("texture_tag", new_texture_data)
+        dpg.set_value("texture_tag", new_texture_source_data)
 
 
 with dpg.window(label="Texture"):
@@ -82,7 +87,10 @@ with dpg.window(label="Config Menu", tag="config_menu"):
 
     dpg.add_button(label="Save UI config", callback=save_init)
 
-dpg.create_viewport(title='LDCT Visualizer', width=1280, height=720)
+with dpg.window(label="Image Slider", tag="app_config"):
+    dpg.add_slider_int(default_value=0, tag="image_slider", callback=image_slider_get_selected_item)
+    
+dpg.create_viewport(title='LDCT Visualizer', width=1920, height=1080)
 dpg.setup_dearpygui()
 dpg.show_viewport()
 dpg.start_dearpygui()

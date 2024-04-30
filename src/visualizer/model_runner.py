@@ -1,12 +1,17 @@
 # Given a slice type and patient name, return a list of:
 # QD list, FD list, Hformer list, W emd list.
 
+from concurrent.futures import ThreadPoolExecutor
+
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
 import warnings
 warnings.filterwarnings("ignore")
 
 import os
 import pathlib
-from matplotlib import pyplot as plt
 import torch
 import numpy as np
 import cv2
@@ -121,18 +126,6 @@ def get_average_metrics(predicted_images, _gt_array, _noisy_array):
     
     return round(psnr_prediction_mean, 4), round(ssim_prediction_mean, 4), round(mse_prediction_mean, 4), round(psnr_prediction_mean - psnr_original_mean, 4), round(ssim_prediction_mean - ssim_original_mean, 4), round(mse_prediction_mean - mse_original_mean, 4), varience_of_laplacian
 
-def get_hformer():
-    import sys
-    sys.path.append('../denoising-models/hformer_vit/model/')
-    sys.path.append('../denoising-models/hformer_vit/')
-    from hformer_model_extended import get_hformer_model, PatchExtractor
-
-    hformer_model = get_hformer_model(num_channels_to_be_generated=64, name="hformer_model_extended")
-    hformer_model.build(input_shape=(None, 64, 64, 1))
-    hformer_model.load_weights('../denoising-models/hformer_vit/test/experiments/full_dataset/hformer_64_channel_custom_loss_epochs_48.h5')
-
-    return hformer_model
-
 def reconstruct_image_from_patches(patches, num_patches_per_row):
     patch_size = patches.shape[1]  # Assuming square patches
     num_patches = patches.shape[0]
@@ -153,10 +146,65 @@ def reconstruct_image_from_patches(patches, num_patches_per_row):
 
     return np.expand_dims(reconstructed_image, axis=-1)
 
-def run_models(patient_id, slice_type):
+def get_hformer_outputs(noisy_array):
+    import sys
+    sys.path.append('../denoising-models/hformer_vit/model/')
+    sys.path.append('../denoising-models/hformer_vit/')
+    from hformer_model_extended import get_hformer_model, PatchExtractor
+
+    hformer_model = get_hformer_model(num_channels_to_be_generated=64, name="hformer_model_extended")
+    hformer_model.build(input_shape=(None, 64, 64, 1))
+    hformer_model.load_weights('../denoising-models/hformer_vit/test/experiments/full_dataset/hformer_64_channel_custom_loss_epochs_48.h5')
+
+    patch_extractor = PatchExtractor(patch_size=64, stride=64, name="patch_extractor")
+    noisy_image_patches_array = patch_extractor(noisy_array)
+
+    hformer_prediction_patches = hformer_model.predict(noisy_image_patches_array)
+
+    hformer_predictions = np.expand_dims(reconstruct_image_from_patches(hformer_prediction_patches[0:64], 8), axis=0)
+
+    for i in range(1, int(hformer_prediction_patches.shape[0] / 64)): 
+        reconstructed_image = reconstruct_image_from_patches(hformer_prediction_patches[i * 64 : i * 64 + 64], num_patches_per_row=8)
+        reconstructed_image = np.expand_dims(reconstructed_image, axis=0)
+
+        hformer_predictions = np.append(hformer_predictions, reconstructed_image, axis=0)
+
+    return hformer_predictions
+
+
+def run_models(patient_id, slice_type, number_of_images):
     print('run models : ', patient_id, slice_type)
-    noisy_array, gt_array = load_training_images(patient_id, slice_type, '../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data/')
-    return noisy_array
+    noisy_array, gt_array = load_training_images(number_of_images, patient_id, slice_type, '../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data/')
+
+    # Run each model in a different thread and get the output.
+    hformer_output = []
+    w_emd = []
+
+    # Get hformer outputs.
+    #hformer_output = get_hformer_outputs(noisy_array)
+    hformer_output = gt_array
+
+    output_plots = []
+    for k in range(len(noisy_array)):
+        fig, ax = plt.subplots(1, 2, figsize=(1024/72, 512/72), dpi=72)
+        fig.tight_layout()
+
+        ax[0].imshow(trunc(denormalize(noisy_array[k])), vmin=-160.0, vmax=240.0, cmap='gray')
+        ax[1].imshow(trunc(denormalize(hformer_output[k])), vmin=-160.0, vmax=240.0, cmap='gray')
+        fig.canvas.draw()
+
+        data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        data = data.reshape((512 * 2, 512, 3))
+
+        new_texture_data = np.empty((1024, 512, 4))
+        new_texture_data[:, :, :3] = data / 255.0
+        new_texture_data[:, :, 3] = 1.0
+
+        output_plots.append(new_texture_data.flatten())
+
+
+        print('Done for image index : ', k)
+    return output_plots
 
     patch_extractor = PatchExtractor(patch_size=64, stride=64, name="patch_extractor")
     noisy_image_patches_array = patch_extractor(noisy_array)
