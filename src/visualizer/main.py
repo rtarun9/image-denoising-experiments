@@ -48,14 +48,14 @@ def run_models_and_get_outputs(sender, app_data, user_data):
     update_texture(None, None, None)
 
 texture_data = []
-for i in range(0, 512* 512 * 2):
+for i in range(0, 512* 512 * 2 * 3):
     texture_data.append(255 / 255)
     texture_data.append(1)
     texture_data.append(255 / 255)
     texture_data.append(255 / 255)
 
 with dpg.texture_registry(show=False):
-    dpg.add_dynamic_texture(width=1024, height=512, default_value=texture_data, tag="texture_tag")
+    dpg.add_dynamic_texture(width=512 * 3, height=512 * 2, default_value=texture_data, tag="texture_tag")
 
 
 def update_texture(sender, app_data, user_data):
@@ -87,9 +87,8 @@ with dpg.window(label="Config Menu", tag="config_menu"):
 
     dpg.add_button(label="Save UI config", callback=save_init)
 
-with dpg.window(label="Image Slider", tag="app_config"):
     dpg.add_slider_int(default_value=0, tag="image_slider", callback=image_slider_get_selected_item)
-    
+
 dpg.create_viewport(title='LDCT Visualizer', width=1920, height=1080)
 dpg.setup_dearpygui()
 dpg.show_viewport()

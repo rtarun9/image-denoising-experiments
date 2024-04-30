@@ -1,7 +1,7 @@
 # Given a slice type and patient name, return a list of:
 # QD list, FD list, Hformer list, W emd list.
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import matplotlib
 matplotlib.use('agg')
@@ -39,93 +39,6 @@ sys.path.append('../denoising-models/hformer_vit/')
 
 from hformer_model_extended import  PatchExtractor
 
-def calculate_psnr(original_image, reconstructed_image,range=400):
-    return peak_signal_noise_ratio(original_image, reconstructed_image,data_range=range) 
-
-    psnr_value = peak_signal_noise_ratio(original_image, reconstructed_image, data_range=240+160)
-    return psnr_value
-
-def calculate_ssim(original_image, reconstructed_image, range=400.0):    
-    ssim_value = ssim(original_image.astype(np.int16), reconstructed_image.astype(np.int16), win_size=11, channel_axis=2, data_range=range)
-    return ssim_value
-
-def calculate_rmse(original_image, reconstructed_image):
-    return mse(original_image, reconstructed_image)
-
-def get_average_metrics(predicted_images, _gt_array, _noisy_array):
-    psnr_original_mean = 0
-    psnr_prediction_mean = 0
-
-    ssim_original_mean = 0
-    ssim_prediction_mean = 0
-
-    mse_original_mean = 0
-    mse_prediction_mean = 0
-
-    varience_of_laplacian = 0
-
-    if np.all(_gt_array) != None:
-        gt_array = _gt_array
-        noisy_array = _noisy_array
-        
-    kernel = np.array([[0, -1, 0],
-                    [-1, -8, -1],
-                    [0, -1, 0]], dtype=np.float32)
-
-    i = 0
-    for gt_img, noisy_img, predicted_img in zip(gt_array, noisy_array, predicted_images):
-        predicted_img=  predicted_images[i]
-            
-        copy_pred_img = np.squeeze(predicted_img, axis=-1)
-        print(copy_pred_img.dtype, copy_pred_img.shape)
-        ddtype = None
-        if copy_pred_img.dtype == np.float64:
-            ddtype = cv2.CV_64F
-        else:
-            ddtype = cv2.CV_32F
-
-        varience_of_laplacian += cv2.filter2D(copy_pred_img, ddtype, kernel).var()
-
-        psnr_recon =  calculate_psnr(trunc(denormalize(gt_img)), trunc(denormalize(predicted_img)))
-        psnr_qd =  calculate_psnr(trunc(denormalize(gt_img)),  trunc(denormalize(noisy_img)))
-        ssim_recon = calculate_ssim(trunc(denormalize(gt_img)),  trunc(denormalize(predicted_img)))
-        ssim_qd =calculate_ssim(trunc(denormalize(gt_img)), trunc(denormalize(noisy_img)))
-        rmse_recon = calculate_rmse(trunc(denormalize(gt_img)),  trunc(denormalize(predicted_img)))
-        rmse_qd=calculate_rmse(trunc(denormalize(gt_img)), trunc(denormalize(noisy_img)))
-
-        psnr_original_mean += psnr_qd
-        psnr_prediction_mean += psnr_recon
-        
-        ssim_original_mean += ssim_qd
-        ssim_prediction_mean += ssim_recon
-
-        mse_original_mean += rmse_qd
-        mse_prediction_mean += rmse_recon
-        
-        i = i + 1        
-    
-    psnr_original_mean/=gt_array.shape[0]
-    psnr_prediction_mean/=gt_array.shape[0]
-
-    ssim_original_mean/=gt_array.shape[0]
-    ssim_prediction_mean/=gt_array.shape[0]
-
-    mse_original_mean/=gt_array.shape[0]
-    mse_prediction_mean/=gt_array.shape[0]
-    
-    print("Original average gt-noisy PSNR ->", psnr_original_mean)
-    print("Predicted average gt-predicted PSNR ->", psnr_prediction_mean)
-
-    print("Original average gt-noisy SSIM ->", ssim_original_mean)
-    print("Predicted average gt-predicted SSIM ->", ssim_prediction_mean)
-
-    print("Original average gt-noisy MSE->", mse_original_mean)
-    print("Predicted average gt-predicted MSE->", mse_prediction_mean)
-
-    print('VAL : ', varience_of_laplacian)
-    
-    return round(psnr_prediction_mean, 4), round(ssim_prediction_mean, 4), round(mse_prediction_mean, 4), round(psnr_prediction_mean - psnr_original_mean, 4), round(ssim_prediction_mean - ssim_original_mean, 4), round(mse_prediction_mean - mse_original_mean, 4), varience_of_laplacian
-
 def reconstruct_image_from_patches(patches, num_patches_per_row):
     patch_size = patches.shape[1]  # Assuming square patches
     num_patches = patches.shape[0]
@@ -145,6 +58,62 @@ def reconstruct_image_from_patches(patches, num_patches_per_row):
             reconstructed_image[i * patch_size:(i + 1) * patch_size, j * patch_size:(j + 1) * patch_size] = patches_2d[i, j]
 
     return np.expand_dims(reconstructed_image, axis=-1)
+
+def get_w_outputs(noisy_array, noisy_image_patches_array):
+    sys.path.append('../denoising-models/hformer_pytorch')
+    from torchinfo import summary
+
+    from w_model import WModel 
+
+    w_model = WModel(num_channels=32).cuda()
+    w_model.load_state_dict(torch.load('../denoising-models/hformer_pytorch/weights/model_278.pth'))
+    w_model.eval()
+
+    w_prediction_patches = []
+
+    with torch.no_grad():    
+        for i, data in enumerate(noisy_image_patches_array):
+            noisy = data
+        
+            predictions = w_model(torch.unsqueeze(torch.from_numpy(noisy.numpy()), dim=0).to('cuda')).cpu()
+
+            w_prediction_patches.append(predictions.detach().cpu())
+        
+    w_prediction_patches = np.concatenate(w_prediction_patches, axis=0)
+
+    w_predictions = np.expand_dims(reconstruct_image_from_patches(w_prediction_patches[0:64], 8), axis=0)
+
+
+    for i in range(1, int(w_prediction_patches.shape[0] / 64)): 
+        reconstructed_image = reconstruct_image_from_patches(w_prediction_patches[i * 64 : i * 64 + 64], num_patches_per_row=8)
+        reconstructed_image = np.expand_dims(reconstructed_image, axis=0)
+
+        w_predictions= np.append(w_predictions, reconstructed_image, axis=0)
+
+    # In extended_w_predictions, do EMD
+
+    emd_predictions = [None] * w_predictions.shape[0]
+    for i in range(w_predictions.shape[0]):
+
+        noisy_reshaped = np.squeeze(noisy_array[i], -1)
+        noisy_imfs = emd2d.emd(noisy_reshaped,max_imf=-1)
+
+        pred_reshaped = w_predictions[i]
+        pred_reshaped = np.squeeze(pred_reshaped, axis=-1)
+        pred_imfs = emd2d.emd(pred_reshaped, max_imf=-1)
+
+        best_performing_lerp_image = None
+
+        for x in [0.44]:
+            swaped_IMFs = np.array([noisy_imfs[1] * x + pred_imfs[1] * (1.0 - x), pred_imfs[0] * (1.0 - x) + noisy_imfs[0] * x])
+            predictions = torch.from_numpy(np.expand_dims(np.expand_dims(np.sum(swaped_IMFs, axis=0), -1), 0))
+
+            best_performing_lerp_image = predictions
+        print('w emd done for : ', i)
+
+        w_predictions[i] = best_performing_lerp_image
+
+    return w_predictions
 
 def get_hformer_outputs(noisy_array):
     import sys
@@ -172,53 +141,62 @@ def get_hformer_outputs(noisy_array):
     return hformer_predictions
 
 
+import tensorflow as tf
 def run_models(patient_id, slice_type, number_of_images):
     print('run models : ', patient_id, slice_type)
     noisy_array, gt_array = load_training_images(number_of_images, patient_id, slice_type, '../../../../Dataset/LowDoseCTGrandChallenge/Training_Image_Data/')
 
-    # Run each model in a different thread and get the output.
-    hformer_output = []
-    w_emd = []
+    patch_extractor = PatchExtractor(patch_size=64, stride=64, name="patch_extractor")
+    noisy_image_patches_array = patch_extractor(noisy_array)
 
-    # Get hformer outputs.
-    #hformer_output = get_hformer_outputs(noisy_array)
-    hformer_output = gt_array
+    with ThreadPoolExecutor() as executor:
+        num_threads = executor._max_workers
+        print(f"Number of threads: {num_threads}")
+
+        hformer_future = executor.submit(get_hformer_outputs, tf.identity(noisy_image_patches_array))
+        w_model_future = executor.submit(get_w_outputs, tf.identity(noisy_array), tf.identity(noisy_image_patches_array))
+
+        # Wait for both futures to complete and retrieve results
+        for future in as_completed([hformer_future, w_model_future]):
+            if future == hformer_future:
+                hformer_output = future.result()
+            elif future == w_model_future:
+                w_model_emd = future.result()
 
     output_plots = []
     for k in range(len(noisy_array)):
-        fig, ax = plt.subplots(1, 2, figsize=(1024/72, 512/72), dpi=72)
+        fig, ax = plt.subplots(2, 3, figsize=((3 * 512)/72, 2 * 512/72), dpi=72)
         fig.tight_layout()
 
-        ax[0].imshow(trunc(denormalize(noisy_array[k])), vmin=-160.0, vmax=240.0, cmap='gray')
-        ax[1].imshow(trunc(denormalize(hformer_output[k])), vmin=-160.0, vmax=240.0, cmap='gray')
+        ax[0,0].imshow(trunc(denormalize(noisy_array[k])), vmin=-160.0, vmax=240.0, cmap='gray')
+        ax[0,0].axis('off')
+        ax[0,0].set_title('Noisy Image')
+
+        ax[0,1].imshow(trunc(denormalize(gt_array[k])), vmin=-160.0, vmax=240.0, cmap='gray')
+        ax[0,1].axis('off')
+        ax[0,1].set_title('Ground Truth')
+
+        ax[0,2].imshow(trunc(denormalize(hformer_output[k])), vmin=-160.0, vmax=240.0, cmap='gray')
+        ax[0,2].axis('off')
+        ax[0,2].set_title('Hformer Output')
+
+        ax[1,0].imshow(trunc(denormalize(w_model_emd[k])), vmin=-160.0, vmax=240.0, cmap='gray')
+        ax[1,0].axis('off')
+        ax[1,0].set_title('W Model EMD')
+
+        ax[1,1].axis('off')
+        ax[1,2].axis('off')
+
         fig.canvas.draw()
 
         data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-        data = data.reshape((512 * 2, 512, 3))
+        data = data.reshape((512 * 3, 512 * 2, 3))
 
-        new_texture_data = np.empty((1024, 512, 4))
+        new_texture_data = np.empty((512 * 3, 512 * 2, 4))
         new_texture_data[:, :, :3] = data / 255.0
         new_texture_data[:, :, 3] = 1.0
 
         output_plots.append(new_texture_data.flatten())
 
-
         print('Done for image index : ', k)
     return output_plots
-
-    patch_extractor = PatchExtractor(patch_size=64, stride=64, name="patch_extractor")
-    noisy_image_patches_array = patch_extractor(noisy_array)
-
-    hformer_model = get_hformer()
-
-    hformer_prediction_patches = hformer_model.predict(noisy_image_patches_array)
-
-    hformer_predictions = np.expand_dims(reconstruct_image_from_patches(hformer_prediction_patches[0:64], 8), axis=0)
-
-    for i in range(1, int(hformer_prediction_patches.shape[0] / 64)): 
-        reconstructed_image = reconstruct_image_from_patches(hformer_prediction_patches[i * 64 : i * 64 + 64], num_patches_per_row=8)
-        reconstructed_image = np.expand_dims(reconstructed_image, axis=0)
-
-        hformer_predictions = np.append(hformer_predictions, reconstructed_image, axis=0)
-
-    return hformer_predictions
