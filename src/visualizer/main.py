@@ -8,6 +8,7 @@ from model_runner import run_models
 # Globla variables
 selected_patient_id = ""
 selected_slice_type = ""
+selected_number_of_images = 0
 
 model_outputs = []
 
@@ -21,18 +22,20 @@ dpg.configure_app(init_file="dpg.ini")
 
 
 def get_selected_item(sender, app_data, user_data):
-    global selected_patient_id, selected_slice_type
+    global selected_patient_id, selected_slice_type, selected_number_of_images
 
     if sender == patient_combo:
         selected_patient_id = app_data
     elif sender == slice_combo:
         selected_slice_type = app_data
+    else:
+        selected_number_of_images = int(app_data)
 
 
 def run_models_and_get_outputs(sender, app_data, user_data):
     global model_outputs 
 
-    model_outputs = run_models(selected_patient_id, selected_slice_type)
+    model_outputs = run_models(selected_patient_id, selected_slice_type, selected_number_of_images)
 
 texture_data = []
 for i in range(0, 512* 512):
@@ -46,28 +49,23 @@ with dpg.texture_registry(show=False):
 
 
 def update_texture(sender, app_data, user_data):
-    new_color = dpg.get_value(sender)
-    new_color[0] = new_color[0] / 255
-    new_color[1] = new_color[1] / 255
-    new_color[2] = new_color[2] / 255
-    new_color[3] = new_color[3] / 255
-    print(new_color)
+    if len(model_outputs) > 0:
+        print('shape : ', model_outputs[0].shape)
+        new_texture_source_data = model_outputs[0]
+        new_texture_source_data = new_texture_source_data.flatten()
 
-    new_texture_data = []
-    for i in range(0, 512 * 512):
-        new_texture_data.append(new_color[0])
-        new_texture_data.append(new_color[1])
-        new_texture_data.append(new_color[2])
-        new_texture_data.append(new_color[3])
+        new_texture_data = []
+        for i in range(0, 512 * 512):
+            new_texture_data.append(new_texture_source_data[i])
+            new_texture_data.append(new_texture_source_data[i])
+            new_texture_data.append(new_texture_source_data[i])
+            new_texture_data.append(1.0)
 
-    dpg.set_value("texture_tag", new_texture_data)
+        dpg.set_value("texture_tag", new_texture_data)
 
 
-with dpg.window(label="Tutorial"):
+with dpg.window(label="Texture"):
     dpg.add_image("texture_tag")
-    dpg.add_color_picker((255, 0, 255, 255), label="Texture",
-                         no_side_preview=True, alpha_bar=True, width=200,
-                         callback=update_texture)
 
 with dpg.window(label="Config Menu", tag="config_menu"):
     dpg.add_text('Patient ID')
@@ -75,6 +73,9 @@ with dpg.window(label="Config Menu", tag="config_menu"):
 
     dpg.add_text('Slice Type')
     slice_combo = dpg.add_combo(["1mm B30", "1mm D45", "3mm B30", "3mm D45"], callback=get_selected_item)
+
+    dpg.add_text('Number of images')
+    dpg.add_slider_int(default_value=10, tag="slider_int", callback=get_selected_item)
 
     dpg.add_button(label="Run Visualizer", callback=run_models_and_get_outputs)
     dpg.add_button(label="Update Texture", callback=update_texture)
